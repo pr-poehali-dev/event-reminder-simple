@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ interface Event {
   date: Date;
   type: EventType;
   description?: string;
+  notificationEnabled?: boolean;
 }
 
 const EventTypeColors = {
@@ -34,6 +35,85 @@ const EventTypeLabels = {
 };
 
 const Index = () => {
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!notificationsEnabled) return;
+
+    const checkEvents = () => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      events.forEach((event) => {
+        if (!event.notificationEnabled) return;
+
+        let shouldNotify = false;
+
+        if (event.type === 'once') {
+          const eventDate = new Date(event.date.getFullYear(), event.date.getMonth(), event.date.getDate());
+          shouldNotify = eventDate.getTime() === today.getTime();
+        } else if (event.type === 'monthly') {
+          shouldNotify = event.date.getDate() === now.getDate();
+        } else if (event.type === 'yearly') {
+          shouldNotify = event.date.getDate() === now.getDate() && event.date.getMonth() === now.getMonth();
+        }
+
+        if (shouldNotify) {
+          sendNotification(event);
+        }
+      });
+    };
+
+    checkEvents();
+    const interval = setInterval(checkEvents, 60000 * 60);
+
+    return () => clearInterval(interval);
+  }, [events, notificationsEnabled]);
+
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      toast.error('Браузер не поддерживает уведомления');
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      setNotificationsEnabled(true);
+      toast.success('Уведомления включены');
+      return;
+    }
+
+    if (Notification.permission !== 'denied') {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      
+      if (permission === 'granted') {
+        setNotificationsEnabled(true);
+        toast.success('Уведомления включены');
+      } else {
+        toast.error('Разрешение на уведомления отклонено');
+      }
+    } else {
+      toast.error('Уведомления заблокированы в настройках браузера');
+    }
+  };
+
+  const sendNotification = (event: Event) => {
+    if (Notification.permission === 'granted') {
+      new Notification('Напоминание о событии', {
+        body: `${event.title}${event.description ? ': ' + event.description : ''}`,
+        icon: '/favicon.svg',
+        tag: event.id,
+      });
+    }
+  };
+
   const [events, setEvents] = useState<Event[]>([
     {
       id: '1',
@@ -41,6 +121,7 @@ const Index = () => {
       date: new Date(2025, 0, 15),
       type: 'yearly',
       description: 'Праздник',
+      notificationEnabled: true,
     },
     {
       id: '2',
@@ -48,6 +129,7 @@ const Index = () => {
       date: new Date(2025, 11, 25),
       type: 'once',
       description: 'Обсуждение проекта',
+      notificationEnabled: true,
     },
     {
       id: '3',
@@ -55,6 +137,7 @@ const Index = () => {
       date: new Date(2025, 11, 5),
       type: 'monthly',
       description: 'Ежемесячный платёж',
+      notificationEnabled: true,
     },
   ]);
 
@@ -67,6 +150,7 @@ const Index = () => {
     date: new Date(),
     type: 'once' as EventType,
     description: '',
+    notificationEnabled: true,
   });
 
   const handleAddEvent = () => {
@@ -81,6 +165,7 @@ const Index = () => {
       date: newEvent.date,
       type: newEvent.type,
       description: newEvent.description,
+      notificationEnabled: newEvent.notificationEnabled,
     };
 
     setEvents([...events, event]);
@@ -89,6 +174,7 @@ const Index = () => {
       date: new Date(),
       type: 'once',
       description: '',
+      notificationEnabled: true,
     });
     setIsDialogOpen(false);
     toast.success('Событие добавлено');
@@ -130,6 +216,19 @@ const Index = () => {
           <p className="text-muted-foreground text-lg">
             Управляйте своими событиями легко и просто
           </p>
+          <div className="mt-4">
+            {notificationPermission !== 'granted' ? (
+              <Button onClick={requestNotificationPermission} variant="outline" className="gap-2">
+                <Icon name="Bell" size={18} />
+                Включить уведомления
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Icon name="BellRing" size={18} className="text-primary" />
+                <span>Уведомления активны</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6 mb-6">
