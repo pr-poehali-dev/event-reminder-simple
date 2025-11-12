@@ -35,6 +35,45 @@ const EventTypeLabels = {
 };
 
 const Index = () => {
+  const [events, setEvents] = useState<Event[]>([
+    {
+      id: '1',
+      title: 'День рождения',
+      date: new Date(2025, 0, 15),
+      type: 'yearly',
+      description: 'Праздник',
+      notificationEnabled: true,
+    },
+    {
+      id: '2',
+      title: 'Встреча с командой',
+      date: new Date(2025, 11, 25),
+      type: 'once',
+      description: 'Обсуждение проекта',
+      notificationEnabled: true,
+    },
+    {
+      id: '3',
+      title: 'Оплата аренды',
+      date: new Date(2025, 11, 5),
+      type: 'monthly',
+      description: 'Ежемесячный платёж',
+      notificationEnabled: true,
+    },
+  ]);
+
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [filterType, setFilterType] = useState<EventType | 'all'>('all');
+  
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    date: new Date(),
+    type: 'once' as EventType,
+    description: '',
+    notificationEnabled: true,
+  });
+
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
@@ -113,45 +152,6 @@ const Index = () => {
       });
     }
   };
-
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: '1',
-      title: 'День рождения',
-      date: new Date(2025, 0, 15),
-      type: 'yearly',
-      description: 'Праздник',
-      notificationEnabled: true,
-    },
-    {
-      id: '2',
-      title: 'Встреча с командой',
-      date: new Date(2025, 11, 25),
-      type: 'once',
-      description: 'Обсуждение проекта',
-      notificationEnabled: true,
-    },
-    {
-      id: '3',
-      title: 'Оплата аренды',
-      date: new Date(2025, 11, 5),
-      type: 'monthly',
-      description: 'Ежемесячный платёж',
-      notificationEnabled: true,
-    },
-  ]);
-
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [filterType, setFilterType] = useState<EventType | 'all'>('all');
-  
-  const [newEvent, setNewEvent] = useState({
-    title: '',
-    date: new Date(),
-    type: 'once' as EventType,
-    description: '',
-    notificationEnabled: true,
-  });
 
   const handleAddEvent = () => {
     if (!newEvent.title.trim()) {
