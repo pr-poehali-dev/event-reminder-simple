@@ -34,33 +34,11 @@ const EventTypeLabels = {
   yearly: 'Ежегодное',
 };
 
+const API_URL = 'https://functions.poehali.dev/eec12068-9e94-450b-a6da-40abe76d58e0';
+
 const Index = () => {
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: '1',
-      title: 'День рождения',
-      date: new Date(2025, 0, 15),
-      type: 'yearly',
-      description: 'Праздник',
-      notificationEnabled: true,
-    },
-    {
-      id: '2',
-      title: 'Встреча с командой',
-      date: new Date(2025, 11, 25),
-      type: 'once',
-      description: 'Обсуждение проекта',
-      notificationEnabled: true,
-    },
-    {
-      id: '3',
-      title: 'Оплата аренды',
-      date: new Date(2025, 11, 5),
-      type: 'monthly',
-      description: 'Ежемесячный платёж',
-      notificationEnabled: true,
-    },
-  ]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -81,7 +59,28 @@ const Index = () => {
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
     }
+    loadEvents();
   }, []);
+
+  const loadEvents = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      
+      const eventsWithDates = data.events.map((event: any) => ({
+        ...event,
+        date: new Date(event.date),
+      }));
+      
+      setEvents(eventsWithDates);
+    } catch (error) {
+      console.error('Error loading events:', error);
+      toast.error('Ошибка загрузки событий');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!notificationsEnabled) return;
@@ -153,36 +152,59 @@ const Index = () => {
     }
   };
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!newEvent.title.trim()) {
       toast.error('Введите название события');
       return;
     }
 
-    const event: Event = {
-      id: Date.now().toString(),
-      title: newEvent.title,
-      date: newEvent.date,
-      type: newEvent.type,
-      description: newEvent.description,
-      notificationEnabled: newEvent.notificationEnabled,
-    };
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newEvent.title,
+          date: newEvent.date.toISOString().split('T')[0],
+          type: newEvent.type,
+          description: newEvent.description,
+          notificationEnabled: newEvent.notificationEnabled,
+        }),
+      });
 
-    setEvents([...events, event]);
-    setNewEvent({
-      title: '',
-      date: new Date(),
-      type: 'once',
-      description: '',
-      notificationEnabled: true,
-    });
-    setIsDialogOpen(false);
-    toast.success('Событие добавлено');
+      if (!response.ok) throw new Error('Failed to create event');
+
+      const createdEvent = await response.json();
+      setEvents([...events, { ...createdEvent, date: new Date(createdEvent.date) }]);
+      
+      setNewEvent({
+        title: '',
+        date: new Date(),
+        type: 'once',
+        description: '',
+        notificationEnabled: true,
+      });
+      setIsDialogOpen(false);
+      toast.success('Событие добавлено');
+    } catch (error) {
+      console.error('Error creating event:', error);
+      toast.error('Ошибка создания события');
+    }
   };
 
-  const handleDeleteEvent = (id: string) => {
-    setEvents(events.filter((e) => e.id !== id));
-    toast.success('Событие удалено');
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Failed to delete event');
+
+      setEvents(events.filter((e) => e.id !== id));
+      toast.success('Событие удалено');
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      toast.error('Ошибка удаления события');
+    }
   };
 
   const getEventsForDate = (date: Date) => {
